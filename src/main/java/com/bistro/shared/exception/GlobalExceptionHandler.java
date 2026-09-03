@@ -1,6 +1,6 @@
 package com.bistro.shared.exception;
 
-import com.bistro.reservations.service.ReservationNotFoundException;
+import com.bistro.reservations.ReservationNotFoundException;
 import org.springframework.http.*;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;

@@ -1,8 +1,8 @@
 package com.bistro.tables.service;
 
-import com.bistro.reservations.model.ReservationCreated;
-import com.bistro.tables.model.TableAssigned;
-import com.bistro.tables.model.TableUnavailable;
+import com.bistro.reservations.events.ReservationCreated;
+import com.bistro.tables.events.TableAssigned;
+import com.bistro.tables.events.TableUnavailable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

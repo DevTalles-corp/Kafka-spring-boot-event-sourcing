@@ -1,4 +1,4 @@
-package com.bistro.tables.model;
+package com.bistro.tables.events;
 
 import java.time.LocalDateTime;
 

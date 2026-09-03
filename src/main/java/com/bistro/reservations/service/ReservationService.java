@@ -1,13 +1,19 @@
 package com.bistro.reservations.service;
 
+import com.bistro.reservations.ReservationNotFoundException;
 import com.bistro.reservations.controller.ReservationMapper;
 import com.bistro.reservations.controller.ReservationRequest;
 import com.bistro.reservations.controller.ReservationResponse;
 import com.bistro.reservations.controller.ReservationStatusResponse;
+import com.bistro.reservations.events.ReservationConfirmed;
+import com.bistro.reservations.events.ReservationCreated;
+import com.bistro.reservations.events.ReservationRejected;
+import com.bistro.reservations.history.ReservationStateChanged;
 import com.bistro.reservations.model.*;
 import com.bistro.reservations.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +31,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ReservationMapper reservationMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void confirm( Long reservationId, Long tableId, String tableNumber){
@@ -33,6 +40,8 @@ public class ReservationService {
                 .orElseThrow( () -> new IllegalArgumentException(
                         "Reserva no encontrada: " + reservationId
                 ));
+
+        ReservationStatus previousStatus = reservation.getStatus();
 
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservation.setAssignedTableId(tableId);
@@ -51,6 +60,14 @@ public class ReservationService {
 
         kafkaTemplate.send("reservation-confirmed", String.valueOf(reservation.getId()), confirmed);
 
+        eventPublisher.publishEvent(new ReservationStateChanged(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                previousStatus,
+                ReservationStatus.CONFIRMED,
+                LocalDateTime.now()
+        ));
+
     }
 
     @Transactional
@@ -58,6 +75,8 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Reserva no encontrada: " + reservationId));
+
+        ReservationStatus previousStatus = reservation.getStatus();
 
         reservation.setStatus(ReservationStatus.REJECTED);
         reservationRepository.save(reservation);
@@ -74,6 +93,14 @@ public class ReservationService {
 
         kafkaTemplate.send("reservation-rejected",
                 String.valueOf(reservation.getId()), rejected);
+
+        eventPublisher.publishEvent(new ReservationStateChanged(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                previousStatus,
+                ReservationStatus.REJECTED,
+                LocalDateTime.now()
+        ));
     }
 
     @Transactional
@@ -90,6 +117,13 @@ public class ReservationService {
                 LocalDateTime.now());
 
         kafkaTemplate.send("reservation-created", String.valueOf(saved.getId()), event);
+
+        eventPublisher.publishEvent(new ReservationStateChanged(
+                saved.getId(),
+                saved.getReservationCode(),
+                null,
+                ReservationStatus.PENDING,
+                LocalDateTime.now()));
 
         return reservationMapper.toResponse(saved);
     }

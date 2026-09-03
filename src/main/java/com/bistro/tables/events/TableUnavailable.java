@@ -1,10 +1,10 @@
-package com.bistro.reservations.model;
+package com.bistro.tables.events;
 
 import java.time.LocalDateTime;
 
-public record ReservationCreated(
+public record TableUnavailable(
         Long reservationId,
-        Integer partySize,
+        String reason,
         LocalDateTime occurredAt
 ) {
 }

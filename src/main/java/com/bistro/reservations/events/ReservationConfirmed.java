@@ -1,12 +1,13 @@
-package com.bistro.reservations.model;
+package com.bistro.reservations.events;
 
 import java.time.LocalDateTime;
 
-public record ReservationRejected(
+public record ReservationConfirmed(
         Long reservationId,
         String reservationCode,
         String customerEmail,
-        String reason,
+        String tableNumber,
+        LocalDateTime reservationTime,
         LocalDateTime occurredAt
 ) {
 }
