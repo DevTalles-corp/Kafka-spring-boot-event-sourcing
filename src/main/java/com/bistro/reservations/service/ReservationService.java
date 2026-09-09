@@ -10,6 +10,9 @@ import com.bistro.reservations.events.ReservationCreated;
 import com.bistro.reservations.events.ReservationRejected;
 import com.bistro.reservations.history.ReservationStateChanged;
 import com.bistro.reservations.model.*;
+import com.bistro.reservations.outbox.OutboxMessage;
+import com.bistro.reservations.outbox.OutboxRepository;
+import com.bistro.reservations.outbox.OutboxStatus;
 import com.bistro.reservations.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -32,6 +36,8 @@ public class ReservationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ReservationMapper reservationMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final JsonMapper jsonMapper;
+    private final OutboxRepository outboxRepository;
 
     @Transactional
     public void confirm( Long reservationId, Long tableId, String tableNumber){
@@ -116,7 +122,16 @@ public class ReservationService {
                 saved.getPartySize(),
                 LocalDateTime.now());
 
-        kafkaTemplate.send("reservation-created", String.valueOf(saved.getId()), event);
+        String payload = jsonMapper.writeValueAsString(event);
+
+        OutboxMessage message = OutboxMessage.builder()
+                .topic("reservation-created")
+                .messageKey(String.valueOf(saved.getId()))
+                .payload(payload)
+                .status(OutboxStatus.PENDING)
+                .build();
+
+        outboxRepository.save(message);
 
         eventPublisher.publishEvent(new ReservationStateChanged(
                 saved.getId(),
