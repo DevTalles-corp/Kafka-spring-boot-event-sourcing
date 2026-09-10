@@ -3,6 +3,7 @@ package com.bistro.tables.service;
 import com.bistro.reservations.events.ReservationCreated;
 import com.bistro.tables.events.TableAssigned;
 import com.bistro.tables.events.TableUnavailable;
+import com.bistro.tables.idempotency.ProcessedEvent;
 import com.bistro.tables.idempotency.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,8 @@ public class ReservationCreatedListener {
                     );
                      kafkaTemplate.send("table-unavailable", String.valueOf(event.reservationId()), unavailable);
                 });
+
+        processedEventRepository.save(new ProcessedEvent(event.reservationId()));
     }
 }
 
