@@ -1,4 +1,4 @@
-package com.bistro.notifications.service;
+package com.bistro.shared.reprocessing;
 
 import com.bistro.reservations.events.ReservationConfirmed;
 import lombok.RequiredArgsConstructor;
@@ -11,32 +11,28 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class ConfirmedDltReprocessor {
+public class DltReprocessor {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @KafkaListener(
-            id = "confirmedDltReprocessor",
-            topics = "reservation-confirmed-dlt",
+            id = "dltReprocessor",
+            topicPattern = ".*-dlt",
             groupId = "dlt-reprocessor",
             autoStartup = "false",
             properties = { "auto.offset.reset=earliest" }
     )
-    public void reprocess(ConsumerRecord<String, ReservationConfirmed> record){
+    public void reprocess(ConsumerRecord<String, Object> record){
 
-        ReservationConfirmed event = record.value();
+        String topic = record.topic().replace("-dlt", "");
 
-        log.info("Reprocesando desde DLT: reserva {} → reenvío a reservation-confirmed", event.reservationId());
+        log.info("Reprocesando desde {} → {} (key={})",
+                record.topic(), topic, record.key());
 
-        kafkaTemplate.send("reservation-confirmed", record.key(), event);
+        kafkaTemplate.send(topic, record.key(), record.value());
 
     }
 }
-
-
-
-
-
 
 
 
