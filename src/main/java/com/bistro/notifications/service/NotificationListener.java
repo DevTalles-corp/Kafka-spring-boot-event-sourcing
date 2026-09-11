@@ -16,6 +16,7 @@ public class NotificationListener {
 
     @KafkaHandler
     public void onConfirmed(ReservationConfirmed event){
+        //throw new RuntimeException("Fallo simulado al procesar la confirmación");
         notificationService.notifyConfirmed(event.customerEmail(), event.reservationCode(), event.tableNumber());
     }
 

@@ -46,6 +46,15 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    //"reservation-confirmed-dlt"
+    @Bean
+    public NewTopic reservationConfirmedDltTopic() {
+        return TopicBuilder.name("reservation-confirmed-dlt")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }
 
 

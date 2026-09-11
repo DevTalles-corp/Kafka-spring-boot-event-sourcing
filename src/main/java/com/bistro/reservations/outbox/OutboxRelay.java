@@ -30,7 +30,7 @@ public class OutboxRelay {
             ReservationCreated event = jsonMapper.readValue(message.getPayload(), ReservationCreated.class);
 
             kafkaTemplate.send(message.getTopic(), message.getMessageKey(), event);
-            kafkaTemplate.send(message.getTopic(), message.getMessageKey(), event);
+//            kafkaTemplate.send(message.getTopic(), message.getMessageKey(), event);
 
             message.setStatus(OutboxStatus.SENT);
 
