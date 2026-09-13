@@ -1,5 +1,6 @@
 package com.bistro.shared.config;
 
+import com.bistro.shared.NonRetryableException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +29,21 @@ public class KafkaErrorHandlingConfig {
 
 
         FixedBackOff backOff = new FixedBackOff(2000L, 3);
-        return new DefaultErrorHandler(recoverer, backOff);
+        DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, backOff);
+
+        errorHandler.addNotRetryableExceptions(NonRetryableException.class);
+
+        return errorHandler;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
