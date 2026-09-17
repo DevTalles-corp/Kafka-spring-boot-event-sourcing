@@ -55,6 +55,14 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic reservationCancelledTopic() {
+        return TopicBuilder.name("reservation-cancelled")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 }
 
 

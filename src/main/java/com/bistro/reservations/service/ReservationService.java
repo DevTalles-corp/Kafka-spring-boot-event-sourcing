@@ -5,6 +5,7 @@ import com.bistro.reservations.controller.ReservationMapper;
 import com.bistro.reservations.controller.ReservationRequest;
 import com.bistro.reservations.controller.ReservationResponse;
 import com.bistro.reservations.controller.ReservationStatusResponse;
+import com.bistro.reservations.events.ReservationCancelled;
 import com.bistro.reservations.events.ReservationConfirmed;
 import com.bistro.reservations.events.ReservationCreated;
 import com.bistro.reservations.events.ReservationRejected;
@@ -159,4 +160,61 @@ public class ReservationService {
         } while (reservationRepository.findByReservationCode(code).isPresent());
         return code;
     }
+
+    @Transactional
+    public void cancel(String reservationCode){
+
+        Reservation reservation = reservationRepository.findByReservationCode(reservationCode)
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Reserva no encontrada: " + reservationCode
+                        ));
+
+        ReservationStatus previousStatus = reservation.getStatus();
+
+        if(previousStatus == ReservationStatus.REJECTED || previousStatus == ReservationStatus.CANCELLED){
+            throw  new IllegalStateException( "No se puede cancelar una reserva en estado " + previousStatus);
+        }
+
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRepository.save(reservation);
+
+        log.info("Reserva {} CANCELLED", reservation.getReservationCode());
+
+        ReservationCancelled cancelled = new ReservationCancelled(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                reservation.getCustomerEmail(),
+                LocalDateTime.now());
+
+        kafkaTemplate.send("reservation-cancelled", String.valueOf(reservation.getId()), cancelled);
+
+        eventPublisher.publishEvent(new ReservationStateChanged(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                previousStatus,
+                ReservationStatus.CANCELLED,
+                LocalDateTime.now()));
+
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

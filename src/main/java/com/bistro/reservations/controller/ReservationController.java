@@ -26,4 +26,22 @@ public class ReservationController {
         ReservationStatusResponse response = reservationService.getReservationStatus(reservationCode);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{reservationCode}/cancel")
+    public ResponseEntity<Void> cancelReservation(@PathVariable String reservationCode){
+        reservationService.cancel(reservationCode);
+        return ResponseEntity.noContent().build();
+    }
+
+
 }
+
+
+
+
+
+
+
+
+
+

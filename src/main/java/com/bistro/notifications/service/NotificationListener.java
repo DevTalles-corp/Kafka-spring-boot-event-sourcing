@@ -1,5 +1,6 @@
 package com.bistro.notifications.service;
 
+import com.bistro.reservations.events.ReservationCancelled;
 import com.bistro.reservations.events.ReservationConfirmed;
 import com.bistro.reservations.events.ReservationRejected;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +9,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
-@KafkaListener(topics = {"reservation-confirmed", "reservation-rejected"}, groupId = "notifications")
+@KafkaListener(topics = {"reservation-confirmed", "reservation-rejected", "reservation-cancelled"}, groupId = "notifications")
 @RequiredArgsConstructor
 public class NotificationListener {
 
@@ -23,6 +24,11 @@ public class NotificationListener {
     @KafkaHandler
     public void onRejected(ReservationRejected event){
         notificationService.notifyRejected(event.customerEmail(), event.reservationCode(), event.reason());
+    }
+
+    @KafkaHandler
+    public void onCancelled(ReservationCancelled event){
+        notificationService.notifyCancelled(event.customerEmail(), event.reservationCode());
     }
 
 }

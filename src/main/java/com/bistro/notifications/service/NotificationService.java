@@ -44,8 +44,6 @@ public class NotificationService {
             }
             throw e;
         }
-
-        log.info("Aviso de CONFIRMACIÓN enviado a {} (reserva {})", to, reservationCode);
     }
 
     public void notifyRejected(String to, String reservationCode, String reason){
@@ -58,6 +56,17 @@ public class NotificationService {
         mailSender.send(msg);
 
         log.info("Aviso de RECHAZO enviado a {} (reserva {})", to, reservationCode);
+    }
+
+    public void notifyCancelled(String to, String reservationCode){
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(to);
+        msg.setSubject("Tu reserva " + reservationCode + " fue cancelada");
+        msg.setText("Confirmamos la cancelación de tu reserva. ¡Esperamos verte pronto!");
+
+        mailSender.send(msg);
+
+        log.info("Aviso de CANCELACIÓN enviado a {} (reserva {})", to, reservationCode);
     }
 
     private void sendEmail(SimpleMailMessage msg){
