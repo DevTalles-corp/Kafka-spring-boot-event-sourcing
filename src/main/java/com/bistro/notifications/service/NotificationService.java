@@ -21,12 +21,14 @@ public class NotificationService {
 
     private static final String REJECTED_ADDRESS = "rechazado@bistro.test";
 
-    public void notifyConfirmed(String to, String reservationCode, String tableNumber){
+    public void notifyConfirmed(String to, String customerName, String reservationCode, String tableNumber){
+
+        String saludo = (customerName != null) ? "Hola " + customerName : "Hola";
 
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(to);
         msg.setSubject("Tu reserva " + reservationCode + " está confirmada");
-        msg.setText("Te asignamos la mesa " + tableNumber + ". ¡Te esperamos!");
+        msg.setText(saludo + ", te asignamos la mesa " + tableNumber + ". ¡Te esperamos!");
 
         try {
             sendEmail(msg);

@@ -61,6 +61,7 @@ public class ReservationService {
                 reservation.getId(),
                 reservation.getReservationCode(),
                 reservation.getCustomerEmail(),
+                reservation.getCustomerName(),
                 tableNumber,
                 reservation.getReservationTime(),
                 LocalDateTime.now());
