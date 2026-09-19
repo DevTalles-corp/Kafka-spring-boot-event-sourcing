@@ -33,6 +33,14 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic reservationConfirmedV2Topic() {
+        return TopicBuilder.name("reservation-confirmed-v2")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic tableUnavailableTopic() {
         return TopicBuilder.name("table-unavailable")
                 .partitions(3)

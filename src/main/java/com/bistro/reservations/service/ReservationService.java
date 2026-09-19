@@ -5,10 +5,7 @@ import com.bistro.reservations.controller.ReservationMapper;
 import com.bistro.reservations.controller.ReservationRequest;
 import com.bistro.reservations.controller.ReservationResponse;
 import com.bistro.reservations.controller.ReservationStatusResponse;
-import com.bistro.reservations.events.ReservationCancelled;
-import com.bistro.reservations.events.ReservationConfirmed;
-import com.bistro.reservations.events.ReservationCreated;
-import com.bistro.reservations.events.ReservationRejected;
+import com.bistro.reservations.events.*;
 import com.bistro.reservations.history.ReservationStateChanged;
 import com.bistro.reservations.model.*;
 import com.bistro.reservations.outbox.OutboxMessage;
@@ -67,6 +64,17 @@ public class ReservationService {
                 LocalDateTime.now());
 
         kafkaTemplate.send("reservation-confirmed", String.valueOf(reservation.getId()), confirmed);
+
+        ReservationConfirmedV2 confirmedV2 = new ReservationConfirmedV2(
+                reservation.getId(),
+                reservation.getReservationCode(),
+                reservation.getCustomerEmail(),
+                reservation.getCustomerName(),
+                tableNumber,
+                reservation.getReservationTime(),
+                LocalDateTime.now());
+
+        kafkaTemplate.send("reservation-confirmed-v2", String.valueOf(reservation.getId()), confirmedV2);
 
         eventPublisher.publishEvent(new ReservationStateChanged(
                 reservation.getId(),
