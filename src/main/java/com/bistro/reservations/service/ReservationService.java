@@ -13,6 +13,8 @@ import com.bistro.reservations.model.*;
 import com.bistro.reservations.outbox.OutboxMessage;
 import com.bistro.reservations.outbox.OutboxRepository;
 import com.bistro.reservations.outbox.OutboxStatus;
+import com.bistro.reservations.query.ReservationView;
+import com.bistro.reservations.query.ReservationViewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,6 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -32,6 +35,7 @@ import java.util.UUID;
 public class ReservationService {
 
     private final ReservationEventStore eventStore;
+    private final ReservationViewRepository viewRepository;
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ReservationMapper reservationMapper;
@@ -158,12 +162,28 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public ReservationStatusResponse getReservationStatus(String reservationCode) {
-        Reservation reservation = eventStore.loadByCode(reservationCode);
+        ReservationView view = viewRepository.findById(reservationCode)
+                .orElseThrow( () -> new ReservationNotFoundException(reservationCode));
 
-        if(reservation.getReservationCode()==null){
-            throw new ReservationNotFoundException(reservationCode);
-        }
-        return reservationMapper.toStatusResponse(reservation);
+        return toStatusResponse(view);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationStatusResponse> listReservations() {
+        return viewRepository.findAll().stream()
+                .map(this::toStatusResponse)
+                .toList();
+    }
+
+    private ReservationStatusResponse toStatusResponse(ReservationView view) {
+        return ReservationStatusResponse.builder()
+                .reservationCode(view.getReservationCode())
+                .status(view.getStatus())
+                .customerName(view.getCustomerName())
+                .reservationTime(view.getReservationTime())
+                .partySize(view.getPartySize())
+                .assignedTableId(view.getAssignedTableId())
+                .build();
     }
 
     private String generateUniqueReservationCode() {

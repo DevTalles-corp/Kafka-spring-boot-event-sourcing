@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/reservations")
 @RequiredArgsConstructor
@@ -31,6 +33,11 @@ public class ReservationController {
     public ResponseEntity<Void> cancelReservation(@PathVariable String reservationCode){
         reservationService.cancel(reservationCode);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ReservationStatusResponse>> listReservations() {
+        return ResponseEntity.ok(reservationService.listReservations());
     }
 
 
