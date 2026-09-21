@@ -3,7 +3,6 @@ package com.bistro.reservations.service;
 import com.bistro.reservations.controller.ReservationRequest;
 import com.bistro.reservations.controller.ReservationResponse;
 import com.bistro.reservations.model.ReservationStatus;
-import com.bistro.reservations.repository.ReservationRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

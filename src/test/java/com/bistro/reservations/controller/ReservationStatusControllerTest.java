@@ -2,7 +2,6 @@ package com.bistro.reservations.controller;
 
 import com.bistro.reservations.model.Reservation;
 import com.bistro.reservations.model.ReservationStatus;
-import com.bistro.reservations.repository.ReservationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

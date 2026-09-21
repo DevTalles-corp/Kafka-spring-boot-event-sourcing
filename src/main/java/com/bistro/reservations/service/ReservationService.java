@@ -6,12 +6,13 @@ import com.bistro.reservations.controller.ReservationRequest;
 import com.bistro.reservations.controller.ReservationResponse;
 import com.bistro.reservations.controller.ReservationStatusResponse;
 import com.bistro.reservations.events.*;
+import com.bistro.reservations.eventstore.ReservationEvent;
+import com.bistro.reservations.eventstore.ReservationEventStore;
 import com.bistro.reservations.history.ReservationStateChanged;
 import com.bistro.reservations.model.*;
 import com.bistro.reservations.outbox.OutboxMessage;
 import com.bistro.reservations.outbox.OutboxRepository;
 import com.bistro.reservations.outbox.OutboxStatus;
-import com.bistro.reservations.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,7 +31,8 @@ import java.util.UUID;
 @Slf4j
 public class ReservationService {
 
-    private final ReservationRepository reservationRepository;
+    private final ReservationEventStore eventStore;
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ReservationMapper reservationMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -40,16 +42,16 @@ public class ReservationService {
     @Transactional
     public void confirm( Long reservationId, Long tableId, String tableNumber){
 
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow( () -> new IllegalArgumentException(
-                        "Reserva no encontrada: " + reservationId
-                ));
+        Reservation reservation = eventStore.load(reservationId);
+
+        if(reservation.getReservationCode()==null){
+            throw new IllegalArgumentException("Reserva no encontrada: " + reservationId);
+        }
 
         ReservationStatus previousStatus = reservation.getStatus();
 
-        reservation.setStatus(ReservationStatus.CONFIRMED);
-        reservation.setAssignedTableId(tableId);
-        reservationRepository.save(reservation);
+        eventStore.append(reservationId,reservation.getReservationCode(),
+                            new ReservationEvent.Confirmed(tableId, tableNumber));
 
         log.info("Reserva {} CONFIRMED con mesa {}",
                 reservation.getReservationCode(), tableNumber);
@@ -77,14 +79,17 @@ public class ReservationService {
 
     @Transactional
     public void reject(Long reservationId, String reason){
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Reserva no encontrada: " + reservationId));
+        Reservation reservation = eventStore.load(reservationId);
+
+        if (reservation.getReservationCode() == null) {
+            throw new IllegalArgumentException("Reserva no encontrada: " + reservationId);
+        }
 
         ReservationStatus previousStatus = reservation.getStatus();
 
-        reservation.setStatus(ReservationStatus.REJECTED);
-        reservationRepository.save(reservation);
+        // append: agregamos el hecho "rechazada" (antes era setStatus + save)
+        eventStore.append(reservationId, reservation.getReservationCode(),
+                new ReservationEvent.Rejected(reason));
 
         log.info("Reserva {} REJECTED: {}",
                 reservation.getReservationCode(), reason);
@@ -110,22 +115,31 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse createReservation(ReservationRequest request) {
-        Reservation reservation = reservationMapper.toEntity(request);
-        reservation.setReservationCode(generateUniqueReservationCode());
-        reservation.setStatus(ReservationStatus.PENDING);
 
-        Reservation saved = reservationRepository.save(reservation);
+        Long reservationId = eventStore.nextReservationId();
+        String reservationCode = generateUniqueReservationCode();
+
+        ReservationEvent.Created created = new ReservationEvent.Created(
+                reservationId,
+                reservationCode,
+                request.getCustomerName(),
+                request.getCustomerEmail(),
+                request.getReservationTime(),
+                request.getPartySize()
+        );
+
+        eventStore.append(reservationId, reservationCode, created);
 
         ReservationCreated event = new ReservationCreated(
-                saved.getId(),
-                saved.getPartySize(),
+                reservationId,
+                request.getPartySize(),
                 LocalDateTime.now());
 
         String payload = jsonMapper.writeValueAsString(event);
 
         OutboxMessage message = OutboxMessage.builder()
                 .topic("reservation-created")
-                .messageKey(String.valueOf(saved.getId()))
+                .messageKey(String.valueOf(reservationId))
                 .payload(payload)
                 .status(OutboxStatus.PENDING)
                 .build();
@@ -133,49 +147,50 @@ public class ReservationService {
         outboxRepository.save(message);
 
         eventPublisher.publishEvent(new ReservationStateChanged(
-                saved.getId(),
-                saved.getReservationCode(),
+                reservationId,
+                reservationCode,
                 null,
                 ReservationStatus.PENDING,
                 LocalDateTime.now()));
 
-        return reservationMapper.toResponse(saved);
+        return new ReservationResponse(reservationCode, ReservationStatus.PENDING, null);
     }
 
     @Transactional(readOnly = true)
     public ReservationStatusResponse getReservationStatus(String reservationCode) {
-        Reservation reservation = reservationRepository.findByReservationCode(reservationCode)
-                .orElseThrow(() -> new ReservationNotFoundException(reservationCode));
+        Reservation reservation = eventStore.loadByCode(reservationCode);
+
+        if(reservation.getReservationCode()==null){
+            throw new ReservationNotFoundException(reservationCode);
+        }
         return reservationMapper.toStatusResponse(reservation);
     }
 
     private String generateUniqueReservationCode() {
-        String code;
-        do {
-            String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-            code = "RES-" + date + "-" + uuid;
-        } while (reservationRepository.findByReservationCode(code).isPresent());
-        return code;
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+       return "RES-" + date + "-" + uuid;
     }
 
     @Transactional
     public void cancel(String reservationCode){
 
-        Reservation reservation = reservationRepository.findByReservationCode(reservationCode)
-                .orElseThrow(
-                        () -> new IllegalArgumentException(
-                                "Reserva no encontrada: " + reservationCode
-                        ));
+        Reservation reservation = eventStore.loadByCode(reservationCode);
+
+        if (reservation.getReservationCode() == null) {
+            throw new IllegalArgumentException("Reserva no encontrada: " + reservationCode);
+        }
 
         ReservationStatus previousStatus = reservation.getStatus();
 
-        if(previousStatus == ReservationStatus.REJECTED || previousStatus == ReservationStatus.CANCELLED){
-            throw  new IllegalStateException( "No se puede cancelar una reserva en estado " + previousStatus);
+        // la guarda de negocio se mantiene igual que antes
+        if (previousStatus == ReservationStatus.REJECTED || previousStatus == ReservationStatus.CANCELLED) {
+            throw new IllegalStateException("No se puede cancelar una reserva en estado " + previousStatus);
         }
 
-        reservation.setStatus(ReservationStatus.CANCELLED);
-        reservationRepository.save(reservation);
+        // append: agregamos el hecho "cancelada" (antes era setStatus + save)
+        eventStore.append(reservation.getId(), reservationCode, new ReservationEvent.Cancelled());
+
 
         log.info("Reserva {} CANCELLED", reservation.getReservationCode());
 
