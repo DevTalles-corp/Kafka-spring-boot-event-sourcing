@@ -54,17 +54,6 @@ public class ReservationService {
         log.info("Reserva {} CONFIRMED con mesa {}",
                 reservation.getReservationCode(), tableNumber);
 
-        ReservationConfirmed confirmed = new ReservationConfirmed(
-                reservation.getId(),
-                reservation.getReservationCode(),
-                reservation.getCustomerEmail(),
-                reservation.getCustomerName(),
-                tableNumber,
-                reservation.getReservationTime(),
-                LocalDateTime.now());
-
-        kafkaTemplate.send("reservation-confirmed", String.valueOf(reservation.getId()), confirmed);
-
         ReservationConfirmedV2 confirmedV2 = new ReservationConfirmedV2(
                 reservation.getId(),
                 reservation.getReservationCode(),

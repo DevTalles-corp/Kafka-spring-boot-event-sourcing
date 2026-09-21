@@ -1,7 +1,7 @@
 package com.bistro.notifications.service;
 
 import com.bistro.reservations.events.ReservationCancelled;
-import com.bistro.reservations.events.ReservationConfirmed;
+import com.bistro.reservations.events.ReservationConfirmedV2;
 import com.bistro.reservations.events.ReservationRejected;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaHandler;
@@ -9,17 +9,17 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
-@KafkaListener(topics = {"reservation-confirmed", "reservation-rejected", "reservation-cancelled"}, groupId = "notifications")
+@KafkaListener(topics = {"reservation-confirmed-v2", "reservation-rejected", "reservation-cancelled"}, groupId = "notifications")
 @RequiredArgsConstructor
 public class NotificationListener {
 
     private final NotificationService notificationService;
 
     @KafkaHandler
-    public void onConfirmed(ReservationConfirmed event){
+    public void onConfirmed(ReservationConfirmedV2 event){
         //throw new RuntimeException("Fallo simulado al procesar la confirmación");
         notificationService.notifyConfirmed(event.customerEmail(), event.customerName(),
-                                            event.reservationCode(), event.tableNumber());
+                                            event.reservationCode(), event.assignedTable());
     }
 
     @KafkaHandler
