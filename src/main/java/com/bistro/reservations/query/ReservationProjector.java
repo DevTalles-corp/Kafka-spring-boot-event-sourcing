@@ -6,11 +6,11 @@ import com.bistro.reservations.model.Reservation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-@Repository
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class ReservationProjector {
